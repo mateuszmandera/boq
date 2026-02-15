@@ -43,10 +43,10 @@ impl Sender {
         });
     }
 
-    pub fn on_error<T, E>(
-        &'_ self,
-        fut: impl Future<Output = Result<T, E>>,
-    ) -> impl Future<Output = Result<T, E>> {
+    pub fn on_error<T, E, U>(&self, fut: U) -> impl Future<Output = Result<T, E>> + use<T, E, U>
+    where
+        U: Future<Output = Result<T, E>>,
+    {
         let sender = self.clone();
         async move {
             fut.await.map_err(|error| {
