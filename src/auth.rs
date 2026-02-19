@@ -6,7 +6,8 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::response::Response;
 use axum_extra::extract::TypedHeader;
-use axum_extra::headers::Cookie;
+use axum_extra::headers::authorization::Basic;
+use axum_extra::headers::{Authorization, Cookie, HeaderMapExt};
 use constant_time_eq::constant_time_eq;
 use django_signing::Signer;
 use hmac::Hmac;
@@ -91,6 +92,45 @@ async fn authenticate_django_session(
     Ok(Some(AuthContext { user_id, realm_id }))
 }
 
+fn has_api_key_format(api_key: &str) -> bool {
+    api_key.len() == 32 && api_key.bytes().all(|c| c.is_ascii_alphanumeric())
+}
+
+async fn authenticate_api_key(
+    state: &AppState,
+    authorization: Authorization<Basic>,
+) -> Result<Option<AuthContext>, anyhow::Error> {
+    let email = authorization.username().trim();
+    let api_key = authorization.password().trim();
+
+    if !has_api_key_format(api_key) {
+        tracing::debug!("Bad API key format");
+        return Ok(None);
+    }
+
+    let db = state.db_pool.get().await?;
+    let sql = "
+        SELECT zerver_userprofile.id, zerver_userprofile.realm_id
+          FROM zerver_userprofile
+          JOIN zerver_realm ON zerver_realm.id = zerver_userprofile.realm_id
+         WHERE zerver_userprofile.api_key = $1
+           AND upper(zerver_userprofile.delivery_email) = upper($2)
+           AND zerver_userprofile.is_active
+           AND NOT zerver_realm.deactivated
+           AND zerver_userprofile.bot_type IS DISTINCT FROM 2
+    ";
+    let Some(user_row) = db.query_opt(sql, &[&api_key, &email]).await? else {
+        tracing::debug!("Bad API key credentials");
+        return Ok(None);
+    };
+
+    let user_id: UserId = user_row.get("id");
+    let realm_id: RealmId = user_row.get("realm_id");
+    // TODO/boq: verify the realm against the request hostname
+
+    Ok(Some(AuthContext { user_id, realm_id }))
+}
+
 pub async fn django_session_auth<B>(
     State(state): State<Arc<AppState>>,
     TypedHeader(cookie): TypedHeader<Cookie>,
@@ -110,10 +150,21 @@ pub async fn django_session_auth<B>(
 }
 
 pub async fn api_auth<B>(
-    State(_state): State<Arc<AppState>>,
-    TypedHeader(_cookie): TypedHeader<Cookie>,
-    _req: Request<B>,
+    State(state): State<Arc<AppState>>,
+    mut req: Request<B>,
 ) -> Result<Request<B>, Result<Response, AppError>> {
-    // TODO/boq: API authentication
-    Err(Ok(StatusCode::UNAUTHORIZED.into_response()))
+    let Some(authorization) = req.headers().typed_get::<Authorization<Basic>>() else {
+        tracing::debug!("Missing or invalid authorization header");
+        return Err(Ok(StatusCode::UNAUTHORIZED.into_response()));
+    };
+
+    if let Some(auth_context) = authenticate_api_key(&state, authorization)
+        .await
+        .map_err(|err| Err(err.into()))?
+    {
+        req.extensions_mut().insert(auth_context);
+        Ok(req)
+    } else {
+        Err(Ok(StatusCode::UNAUTHORIZED.into_response()))
+    }
 }
