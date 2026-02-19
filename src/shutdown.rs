@@ -1,5 +1,4 @@
 use anyhow::Result;
-use std::future::Future;
 use std::sync::Arc;
 use tokio::signal::unix::{signal, SignalKind};
 use tokio::sync::watch;
