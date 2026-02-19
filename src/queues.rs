@@ -63,6 +63,7 @@ pub struct ClientInfo {
     pub apply_markdown: bool,
     pub client_gravatar: bool,
     pub slim_presence: bool,
+    pub simplified_presence_events: bool,
     pub all_public_streams: bool,
     pub queue_timeout: u32,
     pub narrow: Narrow,
@@ -108,9 +109,9 @@ impl Client {
             ClientEvent::Special(SpecialClientEvent::DeleteMessage { .. }) => {
                 self.accepts_type("delete_message")
             }
-            ClientEvent::Special(SpecialClientEvent::Presence { .. }) => {
-                self.accepts_type("presence")
-            }
+            ClientEvent::Special(
+                SpecialClientEvent::Presence { .. } | SpecialClientEvent::PresenceModern { .. },
+            ) => self.accepts_type("presence"),
             ClientEvent::Special(SpecialClientEvent::CustomProfileFields { .. }) => {
                 self.accepts_type("custom_profile_fields")
             }
