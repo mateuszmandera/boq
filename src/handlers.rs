@@ -43,6 +43,9 @@ pub struct GetEventsRequest {
     slim_presence: bool,
     #[serde_as(as = "JsonString")]
     #[serde(default)]
+    simplified_presence_events: bool,
+    #[serde_as(as = "JsonString")]
+    #[serde(default)]
     all_public_streams: bool,
     #[serde_as(as = "JsonString")]
     #[serde(default)]
@@ -139,6 +142,7 @@ async fn get_events_backend(
                 apply_markdown: args.apply_markdown,
                 client_gravatar: args.client_gravatar,
                 slim_presence: args.slim_presence,
+                simplified_presence_events: args.simplified_presence_events,
                 all_public_streams: args.all_public_streams,
                 queue_timeout: args.lifespan_secs,
                 narrow: args.narrow,
