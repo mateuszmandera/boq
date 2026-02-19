@@ -409,6 +409,10 @@ pub enum SpecialClientEvent {
         #[serde(skip_serializing_if = "Option::is_none")]
         email: Option<String>,
     },
+    #[serde(rename = "presence")]
+    PresenceModern {
+        presences: Arc<HashMap<String, ModernPresence>>,
+    },
     CustomProfileFields {
         fields: Arc<[CustomProfileField]>,
     },
@@ -970,32 +974,54 @@ fn process_delete_message_event(
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SlimPresence {
-    #[serde(default)]
-    user_id: Option<UserId>,
+    user_id: UserId,
     server_timestamp: f64,
     presence: HashMap<String, Value>,
 }
 
+#[allow(dead_code)]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ModernPresence {
+    active_timestamp: i64,
+    idle_timestamp: i64,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct PresenceEvent {
-    #[serde(flatten)]
-    slim_presence: Arc<SlimPresence>,
     email: String,
+    user_id: UserId,
+    server_timestamp: f64,
+    legacy_presence: HashMap<String, Value>,
+    modern_presence: ModernPresence,
 }
 
 fn process_presence_event(state: &AppState, event: PresenceEvent, user_ids: Vec<UserId>) {
     tracing::debug!("processing presence event {event:?} {user_ids:?}");
 
-    if event.slim_presence.user_id.is_none() {
-        // We only recently added `user_id` to presence data. Any old events in
-        // our queue can just be dropped, since presence events are pretty
-        // ephemeral in nature.
-        tracing::warn!("Dropping some obsolete presence events after upgrade.");
-    }
+    let PresenceEvent {
+        email,
+        user_id,
+        server_timestamp,
+        legacy_presence,
+        modern_presence,
+    } = event;
+
+    let slim_presence = Arc::new(SlimPresence {
+        user_id,
+        server_timestamp,
+        presence: legacy_presence,
+    });
 
     let slim_event = ClientEvent::Special(SpecialClientEvent::Presence {
-        slim_presence: Arc::clone(&event.slim_presence),
+        slim_presence: Arc::clone(&slim_presence),
         email: None,
+    });
+    let legacy_event = ClientEvent::Special(SpecialClientEvent::Presence {
+        slim_presence: Arc::clone(&slim_presence),
+        email: Some(email),
+    });
+    let modern_event = ClientEvent::Special(SpecialClientEvent::PresenceModern {
+        presences: Arc::new(HashMap::from([(user_id.to_string(), modern_presence)])),
     });
 
     let mut queues = state.queues.lock().unwrap();
@@ -1005,14 +1031,12 @@ fn process_presence_event(state: &AppState, event: PresenceEvent, user_ids: Vec<
             for client_key in client_keys.clone() {
                 let client = queues.get_mut(client_key);
                 if client.accepts_event(&slim_event) {
-                    if client.info().slim_presence {
+                    if client.info().simplified_presence_events {
+                        client.add_event(modern_event.clone());
+                    } else if client.info().slim_presence {
                         client.add_event(slim_event.clone());
                     } else {
-                        let legacy_event = ClientEvent::Special(SpecialClientEvent::Presence {
-                            slim_presence: Arc::clone(&event.slim_presence),
-                            email: Some(event.email.clone()),
-                        });
-                        client.add_event(legacy_event);
+                        client.add_event(legacy_event.clone());
                     }
                 }
             }
