@@ -1,7 +1,7 @@
 use anyhow::Result;
+use axum::Router;
 use axum::middleware;
 use axum::routing::{get, post};
-use axum::Router;
 use hyper_util::rt::TokioIo;
 use std::net::SocketAddr;
 use std::pin::pin;

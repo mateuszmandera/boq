@@ -1,13 +1,13 @@
 use serde::Serialize;
 use slab::Slab;
 use std::borrow::Cow;
-use std::collections::hash_map::{Entry, HashMap};
 use std::collections::HashSet;
 use std::collections::VecDeque;
-use tokio::sync::oneshot::{channel, Receiver, Sender};
+use std::collections::hash_map::{Entry, HashMap};
+use tokio::sync::oneshot::{Receiver, Sender, channel};
 use uuid::Uuid;
 
-use crate::narrow::{matches_narrow, Narrow};
+use crate::narrow::{Narrow, matches_narrow};
 use crate::notice::{ClientEvent, SpecialClientEvent};
 use crate::types::RealmId;
 use crate::types::UserId;
@@ -192,10 +192,11 @@ impl Queues {
                 sender: None,
             },
         }));
-        assert!(self
-            .clients_by_queue_id
-            .insert(queue_id, client_key)
-            .is_none());
+        assert!(
+            self.clients_by_queue_id
+                .insert(queue_id, client_key)
+                .is_none()
+        );
         self.user_clients
             .entry(user_id)
             .or_default()
