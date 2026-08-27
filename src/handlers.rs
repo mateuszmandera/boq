@@ -1,11 +1,11 @@
 #![allow(clippy::unused_async)]
 
+use axum::Extension;
+use axum::Form;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::Extension;
-use axum::Form;
-use axum_extra::{headers, TypedHeader};
+use axum_extra::{TypedHeader, headers};
 use constant_time_eq::constant_time_eq;
 use serde::{Deserialize, Serialize};
 use serde_with::{json::JsonString, serde_as};
@@ -18,7 +18,7 @@ use crate::app_state::AppState;
 use crate::auth::AuthContext;
 use crate::narrow::Narrow;
 use crate::queues::{ClientEventEntry, ClientInfo, QueueId};
-use crate::response::{json_error, json_error_code, json_success, ErrorCode};
+use crate::response::{ErrorCode, json_error, json_error_code, json_success};
 use crate::types::{RealmId, UserId};
 
 type EventId = i64;

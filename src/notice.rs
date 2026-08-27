@@ -1,16 +1,16 @@
 use anyhow::Result;
-use lapin::options::BasicPublishOptions;
 use lapin::BasicProperties;
+use lapin::options::BasicPublishOptions;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-use serde_json::value::RawValue;
 use serde_json::Value;
+use serde_json::value::RawValue;
 
 use crate::app_state::AppState;
-use crate::avatar::{get_avatar_field, AvatarSettings, AvatarSource};
+use crate::avatar::{AvatarSettings, AvatarSource, get_avatar_field};
 use crate::notification_data::{NotificationTrigger, UserIdSets, UserMessageNotificationsData};
 use crate::queues::{Client, QueueId, Queues};
 use crate::types::{MessageFlags, MessageId, RealmId, UserGroupId, UserId};

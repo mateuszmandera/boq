@@ -3,7 +3,7 @@ use url::Url;
 
 use crate::avatar_hash::user_avatar_path_from_ids;
 use crate::types::{RealmId, UserId};
-use crate::upload::{get_avatar_url, MEDIUM_AVATAR_SIZE};
+use crate::upload::{MEDIUM_AVATAR_SIZE, get_avatar_url};
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]
 pub enum AvatarSource {
