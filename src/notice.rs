@@ -91,6 +91,7 @@ pub enum MessageRecipient {
     },
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug, Deserialize)]
 pub struct WideMessage {
     #[serde(flatten)]
@@ -287,6 +288,8 @@ struct OfflineNotice {
 #[serde(rename_all = "snake_case", tag = "type")]
 enum OfflinePushNotice {
     Add(OfflineNotice),
+
+    #[allow(dead_code)]
     Remove {
         user_profile_id: UserId,
         message_ids: Vec<MessageId>,

@@ -55,6 +55,7 @@ impl Queue {
     }
 }
 
+#[allow(dead_code)]
 pub struct ClientInfo {
     pub user_profile_id: UserId,
     pub realm_id: RealmId,
