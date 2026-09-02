@@ -3,6 +3,9 @@ name = "boq"
 version = "0.1.0"
 edition = "2024"
 
+[lints.clippy]
+too_many_arguments = "allow"
+
 [dependencies]
 amq-protocol-types = "7.1.2"
 amq-protocol-uri = "7.1.2"
