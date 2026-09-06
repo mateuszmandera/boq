@@ -87,11 +87,10 @@ impl Client {
     }
 
     fn accepts_type(&self, event_type: &str) -> bool {
-        !self
-            .info
+        self.info
             .event_types
             .as_ref()
-            .is_some_and(|event_types| !event_types.contains(event_type))
+            .is_none_or(|event_types| event_types.contains(event_type))
     }
 
     // TODO: Refactor so we don't need this function
