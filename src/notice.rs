@@ -309,63 +309,61 @@ fn maybe_enqueue_notifications(
 ) -> Result<Notified> {
     let mut notified = Notified::default();
 
-    if !already_notified.push_notified {
-        if let Some(trigger) =
+    if !already_notified.push_notified
+        && let Some(trigger) =
             user_notifications_data.get_push_notification_trigger(acting_user_id, idle)
-        {
-            let notice = OfflinePushNotice::Add(OfflineNotice {
-                user_profile_id: user_notifications_data.user_id,
-                message_id,
-                trigger,
-                mentioned_user_group_id,
-            });
-            let payload = serde_json::to_vec(&notice)?;
-            let state = Arc::clone(state);
-            tokio::spawn(async move {
-                state
-                    .rabbitmq_channel
-                    .basic_publish(
-                        "",
-                        "missedmessage_mobile_notifications",
-                        BasicPublishOptions::default(),
-                        &payload,
-                        BasicProperties::default().with_delivery_mode(2),
-                    )
-                    .await
-            });
-            notified.push_notified = true;
-        }
+    {
+        let notice = OfflinePushNotice::Add(OfflineNotice {
+            user_profile_id: user_notifications_data.user_id,
+            message_id,
+            trigger,
+            mentioned_user_group_id,
+        });
+        let payload = serde_json::to_vec(&notice)?;
+        let state = Arc::clone(state);
+        tokio::spawn(async move {
+            state
+                .rabbitmq_channel
+                .basic_publish(
+                    "",
+                    "missedmessage_mobile_notifications",
+                    BasicPublishOptions::default(),
+                    &payload,
+                    BasicProperties::default().with_delivery_mode(2),
+                )
+                .await
+        });
+        notified.push_notified = true;
     }
 
     // Send missed_message emails if a direct message or a mention. Eventually,
     // we'll add settings to allow email notifications to match the model of
     // push notifications above.
-    if !already_notified.email_notified {
-        if let Some(trigger) =
+    if !already_notified.email_notified
+        && let Some(trigger) =
             user_notifications_data.get_email_notification_trigger(acting_user_id, idle)
-        {
-            let notice = OfflineNotice {
-                user_profile_id: user_notifications_data.user_id,
-                message_id,
-                trigger,
-                mentioned_user_group_id,
-            };
-            let payload = serde_json::to_vec(&notice)?;
-            let state = Arc::clone(state);
-            tokio::spawn(async move {
-                state
-                    .rabbitmq_channel
-                    .basic_publish(
-                        "",
-                        "missedmessage_emails",
-                        BasicPublishOptions::default(),
-                        &payload,
-                        BasicProperties::default().with_delivery_mode(2),
-                    )
-                    .await
-            });
-            notified.email_notified = true;
-        }
+    {
+        let notice = OfflineNotice {
+            user_profile_id: user_notifications_data.user_id,
+            message_id,
+            trigger,
+            mentioned_user_group_id,
+        };
+        let payload = serde_json::to_vec(&notice)?;
+        let state = Arc::clone(state);
+        tokio::spawn(async move {
+            state
+                .rabbitmq_channel
+                .basic_publish(
+                    "",
+                    "missedmessage_emails",
+                    BasicPublishOptions::default(),
+                    &payload,
+                    BasicProperties::default().with_delivery_mode(2),
+                )
+                .await
+        });
+        notified.email_notified = true;
     }
 
     Ok(notified)
@@ -643,30 +641,30 @@ fn process_message_event(
         })
         .collect::<Result<_>>()?;
 
-    if event_template.stream_name.is_some() && !event_template.invite_only {
-        if let Some(realm_id) = event_template.realm_id {
-            if let Some(client_keys) = queues.for_realm_all_streams(realm_id) {
-                for client_key in client_keys.clone() {
-                    let client = queues.get_mut(client_key);
+    if event_template.stream_name.is_some()
+        && !event_template.invite_only
+        && let Some(realm_id) = event_template.realm_id
+        && let Some(client_keys) = queues.for_realm_all_streams(realm_id)
+    {
+        for client_key in client_keys.clone() {
+            let client = queues.get_mut(client_key);
 
-                    if processed_user_ids.contains(&client.info().user_profile_id) {
-                        continue;
-                    }
-
-                    let is_sender = Some(client.queue_id) == event_template.sender_queue_id;
-                    enqueue_message_to_client(
-                        &wide_message,
-                        &mut flavor_cache,
-                        client,
-                        &MessageFlags::new(),
-                        is_sender,
-                        None,
-                        event_template.invite_only,
-                        event_template.local_id.as_ref(),
-                        &state.avatar_settings,
-                    );
-                }
+            if processed_user_ids.contains(&client.info().user_profile_id) {
+                continue;
             }
+
+            let is_sender = Some(client.queue_id) == event_template.sender_queue_id;
+            enqueue_message_to_client(
+                &wide_message,
+                &mut flavor_cache,
+                client,
+                &MessageFlags::new(),
+                is_sender,
+                None,
+                event_template.invite_only,
+                event_template.local_id.as_ref(),
+                &state.avatar_settings,
+            );
         }
     }
 
