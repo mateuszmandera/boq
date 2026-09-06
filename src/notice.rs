@@ -1167,6 +1167,7 @@ fn process_other_event(state: &AppState, event: OtherEvent, user_ids: Vec<UserId
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Event {
