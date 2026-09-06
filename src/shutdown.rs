@@ -48,9 +48,8 @@ impl Sender {
     {
         let sender = self.clone();
         async move {
-            fut.await.map_err(|error| {
+            fut.await.inspect_err(|_error| {
                 sender.shutdown();
-                error
             })
         }
     }
