@@ -53,7 +53,9 @@ struct Cli {
 async fn main() -> Result<()> {
     let args = Cli::parse();
 
+    // TODO/boq: console_subscriber is only suitable in development, not production.
     console_subscriber::init();
+
     let (shutdown_tx, shutdown_rx) =
         shutdown::channel().with_context(|| "failed to initialize shutdown handler")?;
 
