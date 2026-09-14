@@ -356,15 +356,9 @@ dependencies = [
 
 [[package]]
 name = "base62"
-version = "1.1.5"
+version = "2.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35fcadde14317dcd219327c21dd952bfd55fcd457bd5af1c15bb82f4e62734ab"
-
-[[package]]
-name = "base64"
-version = "0.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e1b586273c5702936fe7b7d6896644d8be71e6314cfe09d3167c95f712589e8"
+checksum = "a3a647dce9631f152a99ec16cfc09267ae55fe280d5dc288964027d458076323"
 
 [[package]]
 name = "base64"
@@ -872,17 +866,16 @@ dependencies = [
 [[package]]
 name = "django-signing"
 version = "0.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6d28b6b19d6966b4b4ef4a5c92f98e7265a8b91038014f1f59eba07232a0e6b"
+source = "git+https://github.com/mateuszmandera/django-signing-rust?rev=39804756da0b2aab0a5fc5d4a450df8def5d6c70#39804756da0b2aab0a5fc5d4a450df8def5d6c70"
 dependencies = [
  "base62",
- "base64 0.13.1",
- "digest 0.10.7",
+ "base64 0.23.1",
+ "digest 0.11.3",
  "flate2",
- "hmac 0.12.1",
+ "hmac 0.13.0",
  "serde",
  "serde_json",
- "sha2 0.10.9",
+ "sha2 0.11.0",
  "time",
 ]
 
