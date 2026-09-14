@@ -11,6 +11,7 @@ use axum_extra::headers::{Authorization, Cookie, HeaderMapExt};
 use constant_time_eq::constant_time_eq;
 use django_signing::Signer;
 use hmac::Hmac;
+use hmac::KeyInit;
 use hmac::Mac;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
