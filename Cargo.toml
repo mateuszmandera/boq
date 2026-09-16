@@ -16,8 +16,8 @@ axum-extra = { version = "0.12.6", features = ["typed-header"] }
 clap = { version = "4.3.19", features = ["derive"] }
 configparser = "3.0.2"
 console-subscriber = "0.5.0"
-constant_time_eq = "0.3.0"
-deadpool-postgres = "0.11.0"
+constant_time_eq = "0.6.0"
+deadpool-postgres = "0.14.0"
 django-signing = { git = "https://github.com/mateuszmandera/django-signing-rust", rev = "39804756da0b2aab0a5fc5d4a450df8def5d6c70" }
 futures-lite = "2.0.1"
 gravatar-rs = "0.2.2"
