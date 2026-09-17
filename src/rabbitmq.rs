@@ -1,6 +1,6 @@
-use amq_protocol_types::FieldTable;
+use amq_protocol_types::{FieldTable, ShortString};
 use amq_protocol_uri::{AMQPAuthority, AMQPQueryString, AMQPScheme, AMQPUri, AMQPUserInfo};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use futures_lite::StreamExt;
 use lapin::message::Delivery;
 use lapin::options::{BasicAckOptions, BasicConsumeOptions, BasicQosOptions, QueueDeclareOptions};
@@ -23,7 +23,10 @@ impl RabbitMQ {
         notify_queue: &str,
     ) -> Result<RabbitMQ> {
         let port = 5672;
-        tracing::debug!("connecting to queue on {username}@{host}:{port}");
+        tracing::debug!("connecting to queue {notify_queue} on {username}@{host}:{port}");
+
+        let notify_queue = ShortString::try_new(notify_queue)
+            .with_context(|| "invalid RabbitMQ notify queue name")?;
 
         let connection = Connection::connect_uri(
             AMQPUri {
@@ -36,9 +39,7 @@ impl RabbitMQ {
                 vhost: "/".into(),
                 query: AMQPQueryString::default(),
             },
-            ConnectionProperties::default()
-                .with_executor(tokio_executor_trait::Tokio::current())
-                .with_reactor(tokio_reactor_trait::Tokio),
+            ConnectionProperties::default(),
         )
         .await?;
 
@@ -47,13 +48,12 @@ impl RabbitMQ {
 
         let declare = {
             let channel = channel.clone();
-            move |queue: &str| {
+            move |queue: ShortString| {
                 let channel = channel.clone();
-                let queue = queue.to_string();
                 async move {
                     channel
                         .queue_declare(
-                            &queue,
+                            queue,
                             QueueDeclareOptions {
                                 durable: true,
                                 ..QueueDeclareOptions::default()
@@ -65,9 +65,9 @@ impl RabbitMQ {
             }
         };
         let (notify_result, mobile_result, emails_result) = tokio::join!(
-            declare(notify_queue),
-            declare("missedmessage_mobile_notifications"),
-            declare("missedmessage_emails"),
+            declare(notify_queue.clone()),
+            declare("missedmessage_mobile_notifications".into()),
+            declare("missedmessage_emails".into()),
         );
         notify_result?;
         mobile_result?;
@@ -75,8 +75,8 @@ impl RabbitMQ {
 
         let notify_consumer = channel
             .basic_consume(
-                notify_queue,
-                "consumer",
+                notify_queue.clone(),
+                "consumer".into(),
                 BasicConsumeOptions::default(),
                 FieldTable::default(),
             )

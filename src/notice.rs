@@ -325,8 +325,8 @@ fn maybe_enqueue_notifications(
             state
                 .rabbitmq_channel
                 .basic_publish(
-                    "",
-                    "missedmessage_mobile_notifications",
+                    "".into(),
+                    "missedmessage_mobile_notifications".into(),
                     BasicPublishOptions::default(),
                     &payload,
                     BasicProperties::default().with_delivery_mode(2),
@@ -355,8 +355,8 @@ fn maybe_enqueue_notifications(
             state
                 .rabbitmq_channel
                 .basic_publish(
-                    "",
-                    "missedmessage_emails",
+                    "".into(),
+                    "missedmessage_emails".into(),
                     BasicPublishOptions::default(),
                     &payload,
                     BasicProperties::default().with_delivery_mode(2),
