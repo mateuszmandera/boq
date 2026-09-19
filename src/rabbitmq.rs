@@ -99,7 +99,21 @@ impl RabbitMQ {
             delivery.redelivered,
             String::from_utf8_lossy(&delivery.data),
         );
-        process_notice(state, serde_json::from_slice(&delivery.data)?)?;
+        if let Err(error) = process_delivery(state, &delivery) {
+            // On error, we log and ACK to discard the notice. The only errors
+            // process_delivery can return are serde failures to parse the
+            // notice, so discarding is the correct approach: there is nothing
+            // we can do with a malformed notice.
+            //
+            // If process_delivery ever gains errors worth retrying, we will
+            // need to add a retry mechanism here.
+            tracing::error!(
+                "failed to process delivery <{:?}>: {:#} | payload: {}",
+                delivery.delivery_tag,
+                error,
+                String::from_utf8_lossy(&delivery.data),
+            );
+        }
         self.channel
             .basic_ack(delivery.delivery_tag, BasicAckOptions::default())
             .await?;
@@ -122,4 +136,10 @@ impl RabbitMQ {
         }
         Ok(())
     }
+}
+
+fn process_delivery(state: &Arc<AppState>, delivery: &Delivery) -> Result<()> {
+    let notice =
+        serde_json::from_slice(&delivery.data).with_context(|| "failed to parse notice")?;
+    process_notice(state, notice).with_context(|| "failed to process notice")
 }
