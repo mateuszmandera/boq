@@ -21,6 +21,11 @@ use crate::queues::{ClientEventEntry, ClientInfo, QueueId};
 use crate::response::{ErrorCode, json_error, json_error_code, json_success};
 use crate::types::{RealmId, UserId};
 
+// Keep these in sync with zerver/tornado/event_queue.py.
+const DEFAULT_EVENT_QUEUE_TIMEOUT_SECS: u32 = 60 * 10;
+const MOBILE_EVENT_QUEUE_TIMEOUT_SECS: u32 = 12 * 60 * 60;
+const MAX_QUEUE_TIMEOUT_SECS: u32 = 7 * 24 * 60 * 60;
+
 type EventId = i64;
 
 #[allow(dead_code, clippy::struct_excessive_bools)]
@@ -58,7 +63,7 @@ pub struct GetEventsRequest {
     narrow: Narrow,
     #[serde_as(as = "JsonString")]
     #[serde(default)]
-    lifespan_secs: u32,
+    idle_queue_timeout: Option<IdleQueueTimeout>,
     #[serde_as(as = "JsonString")]
     #[serde(default)]
     bulk_message_deletion: bool,
@@ -76,10 +81,25 @@ pub struct GetEventsRequest {
     linkifier_url_template: bool,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum IdleQueueTimeout {
+    Secs(u32),
+    Keyword(Keyword),
+}
+
+#[derive(Debug, Deserialize)]
+enum Keyword {
+    #[serde(rename = "mobile")]
+    Mobile,
+}
+
 #[derive(Serialize)]
 struct GetEventsResponse {
     events: Vec<ClientEventEntry>,
     queue_id: QueueId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    idle_queue_timeout_secs: Option<u32>,
 }
 
 fn bad_queue_id(queue_id: &QueueId) -> Response {
@@ -93,10 +113,18 @@ fn bad_queue_id(queue_id: &QueueId) -> Response {
         .into_response()
 }
 
-fn get_events_response(events: Vec<ClientEventEntry>, queue_id: QueueId) -> Response {
+fn get_events_response(
+    events: Vec<ClientEventEntry>,
+    queue_id: QueueId,
+    queue_timeout: Option<u32>,
+) -> Response {
     (
         TypedHeader(headers::CacheControl::new().with_no_store().with_private()),
-        json_success(GetEventsResponse { events, queue_id }),
+        json_success(GetEventsResponse {
+            events,
+            queue_id,
+            idle_queue_timeout_secs: queue_timeout,
+        }),
     )
         .into_response()
 }
@@ -123,20 +151,28 @@ async fn get_events_backend(
 
             let events = client.queue.peek_events(args.last_event_id);
             if !events.is_empty() || args.dont_block {
-                return Ok(get_events_response(events, queue_id));
+                return Ok(get_events_response(events, queue_id, None));
             }
 
             if let Some(receiver) = client.queue.wait_for_events() {
                 (queue_id, receiver)
             } else {
                 let events = client.queue.peek_events(args.last_event_id);
-                return Ok(get_events_response(events, queue_id));
+                return Ok(get_events_response(events, queue_id, None));
             }
         } else if args.dont_block {
             let events = vec![];
+            let queue_timeout = match args.idle_queue_timeout {
+                None => DEFAULT_EVENT_QUEUE_TIMEOUT_SECS,
+                Some(IdleQueueTimeout::Keyword(Keyword::Mobile)) => MOBILE_EVENT_QUEUE_TIMEOUT_SECS,
+                Some(IdleQueueTimeout::Secs(secs)) => secs,
+            }
+            .min(MAX_QUEUE_TIMEOUT_SECS);
+
             let info = ClientInfo {
                 user_profile_id,
                 realm_id,
+                queue_timeout,
                 event_types: args.event_types,
                 client_type_name: args.user_client.unwrap_or(Cow::Borrowed("unknown-client")), // TODO/boq: detect from User-Agent
                 apply_markdown: args.apply_markdown,
@@ -144,7 +180,6 @@ async fn get_events_backend(
                 slim_presence: args.slim_presence,
                 simplified_presence_events: args.simplified_presence_events,
                 all_public_streams: args.all_public_streams,
-                queue_timeout: args.lifespan_secs,
                 narrow: args.narrow,
                 bulk_message_deletion: args.bulk_message_deletion,
                 stream_typing_notifications: args.stream_typing_notifications,
@@ -153,7 +188,7 @@ async fn get_events_backend(
                 linkifier_url_template: args.linkifier_url_template,
             };
             let queue_id = queues.register(info);
-            return Ok(get_events_response(events, queue_id));
+            return Ok(get_events_response(events, queue_id, Some(queue_timeout)));
         } else {
             return Ok((
                 StatusCode::BAD_REQUEST,
@@ -179,7 +214,7 @@ async fn get_events_backend(
         () = shutdown_rx.wait() => vec![],
     };
 
-    Ok(get_events_response(events, queue_id))
+    Ok(get_events_response(events, queue_id, None))
 }
 
 /// Handle `GET /`.
