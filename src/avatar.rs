@@ -99,3 +99,92 @@ fn get_gravatar_url(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Adapted based on the AvatarTest.test_get_avatar_field Zulip python test.
+    #[test]
+    fn test_get_avatar_field() {
+        let settings = AvatarSettings {
+            enable_gravatar: true,
+            default_avatar_uri: String::new(),
+            avatar_salt: "salt".to_string(),
+        };
+
+        let url = get_avatar_field(
+            17,
+            5,
+            "foo@example.com",
+            AvatarSource::User,
+            2,
+            true,
+            false,
+            &settings,
+        );
+        assert_eq!(
+            url.unwrap(),
+            "/user_avatars/5/ff062b0fee41738b38c4312bb33bdf3fe2aad463-medium.png"
+        );
+
+        let url = get_avatar_field(
+            18,
+            4,
+            "bar@example.com",
+            AvatarSource::Jdenticon,
+            2,
+            true,
+            false,
+            &settings,
+        );
+        assert_eq!(
+            url.unwrap(),
+            "/user_avatars/4/899f0055b9b2d23cd53c9370c681ccee3d50da7a-medium.png"
+        );
+
+        let url = get_avatar_field(
+            9999,
+            9999,
+            "foo@example.com",
+            AvatarSource::Gravatar,
+            2,
+            true,
+            false,
+            &settings,
+        );
+        assert_eq!(
+            url.unwrap(),
+            "https://secure.gravatar.com/avatar/b48def645758b95537d4424c84d1a9ff?d=identicon&s=500&version=2"
+        );
+
+        let url = get_avatar_field(
+            9999,
+            9999,
+            "foo@example.com",
+            AvatarSource::Gravatar,
+            2,
+            true,
+            true,
+            &settings,
+        );
+        assert_eq!(url, None);
+
+        let settings_gravatar_disabled = AvatarSettings {
+            enable_gravatar: false,
+            default_avatar_uri: "/local-static/default-avatar.png".to_string(),
+            avatar_salt: "salt".to_string(),
+        };
+        let url = get_avatar_field(
+            9999,
+            9999,
+            "foo@example.com",
+            AvatarSource::Gravatar,
+            2,
+            true,
+            false,
+            &settings_gravatar_disabled,
+        );
+        assert_eq!(url.unwrap(), "/local-static/default-avatar.png?version=2");
+    }
+}
