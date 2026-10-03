@@ -75,16 +75,15 @@ impl AppServer {
                     .serve_connection(socket, hyper_service)
                     .with_upgrades();
                 let mut conn = pin!(conn);
-                loop {
-                    tokio::select! {
-                        result = conn.as_mut() => {
-                            if let Err(err) = result {
-                                tracing::debug!("failed to serve connection: {err:#}");
-                            }
-                            break;
-                        }
-                        () = shutdown_rx.wait() => conn.as_mut().graceful_shutdown(),
+                let result = tokio::select! {
+                    result = conn.as_mut() => result,
+                    () = shutdown_rx.wait() => {
+                        conn.as_mut().graceful_shutdown();
+                        conn.await
                     }
+                };
+                if let Err(err) = result {
+                    tracing::debug!("failed to serve connection: {err:#}");
                 }
             });
         }
