@@ -65,7 +65,7 @@ async fn main() -> Result<()> {
         secret_key,
         shared_secret,
         avatar_salt,
-    } = Secrets::load(args.secrets_file).with_context(|| "failed to load secrets")?;
+    } = Secrets::load(&args.secrets_file).with_context(|| "failed to load secrets")?;
 
     // TODO/boq: support non-development database configuration
     let mut db_config = deadpool_postgres::Config::new();
