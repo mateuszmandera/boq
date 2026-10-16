@@ -27,7 +27,10 @@ impl AppServer {
 
         let app = Router::new()
             .route("/", get(handlers::get_root))
-            .route("/notify_tornado", post(handlers::post_notify_tornado))
+            .route(
+                "/api/internal/notify_tornado",
+                post(handlers::post_notify_tornado),
+            )
             .route(
                 "/json/events",
                 get(handlers::get_events)

@@ -17,6 +17,7 @@ use crate::app_error::AppError;
 use crate::app_state::AppState;
 use crate::auth::AuthContext;
 use crate::narrow::Narrow;
+use crate::notice::process_notice;
 use crate::queues::{ClientEventEntry, ClientInfo, QueueId};
 use crate::response::{ErrorCode, json_error, json_error_code, json_success};
 use crate::types::{RealmId, UserId};
@@ -222,9 +223,26 @@ pub async fn get_root() -> &'static str {
     "boq 🤖\n"
 }
 
-/// Handle `POST /notify_tornado`.
-pub async fn post_notify_tornado() {
-    // TODO/boq: notify queues
+#[derive(Debug, Deserialize)]
+pub struct PostNotifyTornadoRequest {
+    secret: String,
+    data: String,
+}
+
+/// Handle `POST /api/internal/notify_tornado`.
+pub async fn post_notify_tornado(
+    State(state): State<Arc<AppState>>,
+    Form(PostNotifyTornadoRequest { secret, data }): Form<PostNotifyTornadoRequest>,
+) -> Result<Response, AppError> {
+    // TODO/boq: Like upstream's authenticate_internal_api, also require
+    // that the request come from a local address.
+
+    if !constant_time_eq(secret.as_bytes(), state.shared_secret.as_bytes()) {
+        return Ok((StatusCode::FORBIDDEN, json_error("Access denied")).into_response());
+    }
+
+    process_notice(&state, serde_json::from_str(&data)?)?;
+    Ok(json_success(()).into_response())
 }
 
 /// Handle `GET /json/events` and `GET /api/v1/events`.
