@@ -1,5 +1,5 @@
 use anyhow::{Context, Error, Result};
-use configparser::ini::Ini;
+use configparser::ini::{Ini, IniDefault};
 
 pub struct Secrets {
     pub local_database_password: String,
@@ -11,7 +11,10 @@ pub struct Secrets {
 
 impl Secrets {
     pub fn load(secrets_file: String) -> Result<Secrets> {
-        let mut secrets_config = Ini::new();
+        let mut defaults = IniDefault::default();
+        defaults.enable_inline_comments = false;
+        let mut secrets_config = Ini::new_from_defaults(defaults);
+
         secrets_config.load(secrets_file).map_err(Error::msg)?;
         Ok(Secrets {
             local_database_password: secrets_config
